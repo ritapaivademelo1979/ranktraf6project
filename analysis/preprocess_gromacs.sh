@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Make a whole-molecule, centred, protein-only trajectory + matching .tpr for analysis.
 #
-# Usage: ./preprocess_gromacs.sh md.tpr md.xtc out_prefix [stride_ps]
+# Usage: ./preprocess_gromacs.sh md.tpr md.xtc out_prefix [dt_ps]   (dt_ps: keep one frame every dt_ps)
 #   -> out_prefix_complex.tpr, out_prefix_complex.xtc
 #
 # The complex-only trajectory is ~10-50x smaller than the solvated one, which

@@ -22,15 +22,21 @@ from MDAnalysis.lib.distances import distance_array, minimize_vectors
 
 from .config import Config, Replica
 
-ACIDIC = ("((resname ASP and name OD1 OD2) or (resname GLU GLH and name OE1 OE2)"
-          " or name OC1 OC2 OXT)")
+# AMBER and CHARMM names (C-terminal oxygens: OC1/OC2 in AMBER, OT1/OT2 in CHARMM; protonated His: HIP/HSP).
+ACIDIC = ("((resname ASP and name OD1 OD2) or (resname GLU and name OE1 OE2)"
+          " or name OC1 OC2 OT1 OT2 OXT)")
 BASIC = ("((resname ARG and name NH1 NH2 NE) or (resname LYS and name NZ)"
-         " or (resname HIP and name ND1 NE2))")
+         " or (resname HIP HSP and name ND1 NE2))")
+
+
+# Residue-number offsets for output tables (set from the config in analyse_replica).
+_OFFSET = {"receptor": 0, "peptide": 0}
 
 
 def _res_label(res, peptide: bool = False) -> str:
     """Residue label; peptide residues get a 'pep:' prefix so numbering can't clash with the receptor."""
-    return f"{'pep:' if peptide else ''}{res.resname}{res.resid}"
+    off = _OFFSET["peptide" if peptide else "receptor"]
+    return f"{'pep:' if peptide else ''}{res.resname}{res.resid + off}"
 
 
 def _heavy(ag: mda.AtomGroup) -> mda.AtomGroup:
@@ -64,6 +70,7 @@ class _ResidueIndex:
 
 def analyse_replica(rep: Replica, cfg: Config) -> dict[str, pd.DataFrame]:
     rec_sel, pep_sel = cfg.selections_for(rep.system)
+    _OFFSET["receptor"], _OFFSET["peptide"] = cfg.receptor_offset, cfg.peptide_offset
     u = mda.Universe(str(rep.top), str(rep.traj))
     rec = u.select_atoms(rec_sel)
     pep = u.select_atoms(pep_sel)
@@ -185,10 +192,11 @@ def analyse_replica(rep: Replica, cfg: Config) -> dict[str, pd.DataFrame]:
         raise ValueError(f"[{rep.system}/{rep.name}] no frames after skip_ns={cfg.skip_ns}.")
 
     out = {"timeseries": pd.DataFrame(rows)}
-    out["rmsf_receptor"] = _rmsf_df(rec_ca, rec_ca_sum, rec_ca_sq, n_eq)
-    out["rmsf_peptide"] = _rmsf_df(pep_ca, pep_ca_sum, pep_ca_sq, n_eq)
-    out["contacts_receptor_residues"] = _res_freq_df(rec_idx.residues, rec_res_hits / n_eq)
-    out["contacts_peptide_residues"] = _res_freq_df(pep_idx.residues, pep_res_hits / n_eq)
+    ro, po = cfg.receptor_offset, cfg.peptide_offset
+    out["rmsf_receptor"] = _rmsf_df(rec_ca, rec_ca_sum, rec_ca_sq, n_eq, ro)
+    out["rmsf_peptide"] = _rmsf_df(pep_ca, pep_ca_sum, pep_ca_sq, n_eq, po)
+    out["contacts_receptor_residues"] = _res_freq_df(rec_idx.residues, rec_res_hits / n_eq, ro)
+    out["contacts_peptide_residues"] = _res_freq_df(pep_idx.residues, pep_res_hits / n_eq, po)
     out["contacts_residue_pairs"] = pd.DataFrame(
         [{"receptor_res": _res_label(rec_idx.residues[i]), "peptide_res": _res_label(pep_idx.residues[j], True),
           "native": (i, j) in native, "frequency": c / n_eq} for (i, j), c in pair_hits.items()],
@@ -215,14 +223,14 @@ def _image_shift(rec, pep, box) -> np.ndarray:
     return minimize_vectors(d, box) - d
 
 
-def _rmsf_df(ca, s, sq, n) -> pd.DataFrame:
+def _rmsf_df(ca, s, sq, n, offset=0) -> pd.DataFrame:
     mean = s / n
     rmsf = np.sqrt(np.maximum(sq / n - (mean ** 2).sum(axis=1), 0.0))
-    return pd.DataFrame({"resid": ca.resids, "resname": ca.resnames, "rmsf_nm": rmsf / 10.0})
+    return pd.DataFrame({"resid": ca.resids + offset, "resname": ca.resnames, "rmsf_nm": rmsf / 10.0})
 
 
-def _res_freq_df(residues, freq) -> pd.DataFrame:
-    return pd.DataFrame({"resid": residues.resids, "resname": residues.resnames, "contact_frequency": freq})
+def _res_freq_df(residues, freq, offset=0) -> pd.DataFrame:
+    return pd.DataFrame({"resid": residues.resids + offset, "resname": residues.resnames, "contact_frequency": freq})
 
 
 def _hbonds(u, rec_sel, pep_sel, stride, skip_ps):

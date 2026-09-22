@@ -1,0 +1,32 @@
+# Analysis config for the RANK peptide–TRAF6 simulations.
+# Relative paths are resolved from this folder (analysis/).
+out_dir: ../results
+
+# Segments in PEP2A_TRAF6_md.tpr (checked with inspect_topology.py):
+#   seg_0_PEP  = peptide, 25 residues (tpr resid 1-25)
+#   seg_1_TRAF = TRAF6,  155 residues (tpr resid 26-180)
+selections:
+  receptor: "segid seg_1_TRAF"
+  peptide:  "segid seg_0_PEP"
+
+# The .tpr numbers residues 1..180 in sequence. Offsets are added to the resids in
+# output tables and figures only; selections (hotspots) still use .tpr numbering.
+# Example: if the TRAF6 construct starts at residue 350, receptor_offset = 350 - 26 = 324.
+numbering:
+  receptor_offset: 0
+  peptide_offset: 0
+
+analysis:
+  stride: 1                # use every frame of the (already reduced) trajectory
+  skip_ns: 50              # equilibration excluded from averages, RMSF and occupancies
+  contact_cutoff_nm: 0.45
+  saltbridge_cutoff_nm: 0.40
+  hbonds: true
+
+hotspots: {}               # e.g. {pocket: "resid 150 151 152"} in .tpr numbering
+
+systems:
+  PEP2A:
+    replicas:
+      # complex-only trajectory made with preprocess_gromacs.sh (see README)
+      r1: {top: ../PEP2A_TRAF6_md.tpr, traj: ../trajectories/PEP2A_r1_complex.xtc}

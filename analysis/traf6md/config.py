@@ -25,6 +25,8 @@ class Config:
     hbonds: bool = True
     hotspots: dict[str, str] = field(default_factory=dict)
     per_system_sel: dict[str, dict[str, str]] = field(default_factory=dict)
+    receptor_offset: int = 0
+    peptide_offset: int = 0
 
     def selections_for(self, system: str) -> tuple[str, str]:
         over = self.per_system_sel.get(system, {})
@@ -61,4 +63,6 @@ def load_config(path: str | Path) -> Config:
         hbonds=bool(analysis.get("hbonds", True)),
         hotspots=dict(raw.get("hotspots") or {}),
         per_system_sel=per_system_sel,
+        receptor_offset=int((raw.get("numbering") or {}).get("receptor_offset", 0)),
+        peptide_offset=int((raw.get("numbering") or {}).get("peptide_offset", 0)),
     )
