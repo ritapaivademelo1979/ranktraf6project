@@ -1,0 +1,37 @@
+# Copy to config.yaml and edit. Relative paths are resolved from this file's folder.
+out_dir: results
+
+# Selections (MDAnalysis syntax) for TRAF6 and the peptide.
+# Check them with:  python inspect_topology.py complex.tpr --test-sel "<receptor>" "<peptide>"
+# With a .tpr made by pdb2gmx, each chain is its own segment, e.g. seg_0_Protein_chain_A.
+selections:
+  receptor: "segid seg_0_Protein_chain_A"
+  peptide:  "segid seg_1_Protein_chain_B"
+
+analysis:
+  stride: 10               # use every 10th frame (100 ps with 10 ps output) – set 1 for final numbers
+  skip_ns: 50              # equilibration window excluded from averages, RMSF and occupancies
+  contact_cutoff_nm: 0.45  # heavy-atom contact cutoff; also defines "bound" (min. distance < cutoff)
+  saltbridge_cutoff_nm: 0.40
+  hbonds: true             # D–A <= 0.35 nm, D–H–A >= 150°; slowest step, set false for a quick look
+
+# Optional: minimum peptide distance to named TRAF6 sub-sites (receptor selections).
+# Fill these in from the literature or from results/figures/contact_heatmap_receptor.png
+# after a first run. Numbering must match YOUR topology (check with inspect_topology.py).
+hotspots:
+  # pocket_A: "resid 100 101 105"
+  # pocket_B: "resid 120 and name NH1 NH2"
+
+systems:
+  # One entry per peptide–TRAF6 complex; names are used in tables and figure legends,
+  # and their order sets the colour order.
+  RANK_wt:
+    replicas:
+      r1: {top: ../md/RANK_wt/r1/md_complex.tpr, traj: ../md/RANK_wt/r1/md_complex.xtc}
+      r2: {top: ../md/RANK_wt/r2/md_complex.tpr, traj: ../md/RANK_wt/r2/md_complex.xtc}
+      r3: {top: ../md/RANK_wt/r3/md_complex.tpr, traj: ../md/RANK_wt/r3/md_complex.xtc}
+  peptide_02:
+    # per-system selections override the global ones if chains/lengths differ
+    # selections: {receptor: "...", peptide: "..."}
+    replicas:
+      r1: {top: ../md/peptide_02/r1/md_complex.tpr, traj: ../md/peptide_02/r1/md_complex.xtc}
